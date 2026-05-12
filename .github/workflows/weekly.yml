@@ -1,0 +1,58 @@
+name: Weekly arXiv Fetch
+
+on:
+  # 每周一 09:00 (Asia/Shanghai, UTC+8) = 周一 01:00 UTC
+  schedule:
+    - cron: '0 1 * * 1'
+  # 允许手动触发（仓库 Actions 页面点按钮）
+  workflow_dispatch:
+
+# 防止并发运行
+concurrency:
+  group: weekly-fetch
+  cancel-in-progress: false
+
+jobs:
+  fetch-and-summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90         # 最长 90 分钟，防跑飞
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pipeline (fetch + classify + summarize + deep + PPT)
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          TZ: Asia/Shanghai
+        run: python pipeline.py
+
+      - name: Upload generated PPTs as artifact
+        if: always()            # 即使 pipeline 部分失败也上传已生成的 PPT
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppts-${{ github.run_id }}
+          path: data/ppts/*.pptx
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_id }}
+          path: data/logs/
+          if-no-files-found: ignore
+          retention-days: 7
