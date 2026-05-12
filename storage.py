@@ -30,6 +30,7 @@ SCHEMA_STMTS = [
         directions TEXT,
         summary TEXT,
         summary_raw TEXT,
+        deep_summary TEXT,
         fetched_at TEXT
     )""",
     "CREATE INDEX IF NOT EXISTS idx_published ON papers(published)",
@@ -125,6 +126,14 @@ class Storage:
         else:
             self.backend = _SqliteBackend(db_path)
             self.is_remote = False
+        self._migrate()
+
+    def _migrate(self):
+        """对老库做无损升级（新增列）"""
+        try:
+            self.backend.execute("ALTER TABLE papers ADD COLUMN deep_summary TEXT", ())
+        except Exception:
+            pass  # 已存在
 
     # ---------- 写 ----------
     def exists(self, arxiv_id: str) -> bool:
@@ -184,6 +193,7 @@ class Storage:
         for r in rows:
             r["directions"] = json.loads(r["directions"]) if r.get("directions") else []
             r["summary"] = json.loads(r["summary"]) if r.get("summary") else None
+            r["deep_summary"] = json.loads(r["deep_summary"]) if r.get("deep_summary") else None
 
         if directions:
             ds = set(directions)
@@ -222,3 +232,20 @@ class Storage:
             (json.dumps(summary, ensure_ascii=False) if summary else None,
              summary_raw, arxiv_id),
         )
+
+    def update_deep_summary(self, arxiv_id: str, deep_summary: dict):
+        self.backend.execute(
+            "UPDATE papers SET deep_summary=? WHERE arxiv_id=?",
+            (json.dumps(deep_summary, ensure_ascii=False) if deep_summary else None,
+             arxiv_id),
+        )
+
+    def get_paper(self, arxiv_id: str) -> Optional[Dict]:
+        rows = self.backend.query("SELECT * FROM papers WHERE arxiv_id=?", (arxiv_id,))
+        if not rows:
+            return None
+        r = rows[0]
+        r["directions"] = json.loads(r["directions"]) if r.get("directions") else []
+        r["summary"] = json.loads(r["summary"]) if r.get("summary") else None
+        r["deep_summary"] = json.loads(r["deep_summary"]) if r.get("deep_summary") else None
+        return r

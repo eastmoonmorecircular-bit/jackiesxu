@@ -1,6 +1,7 @@
 """Streamlit 可视化 Dashboard"""
 from __future__ import annotations
 import datetime as dt
+from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -35,6 +36,98 @@ def _bootstrap():
     return True
 
 _bootstrap()
+
+
+# ---------- 深度解读渲染辅助 ----------
+def _render_deep_summary(deep: dict):
+    """在网页上展示分章节深度解读"""
+    sections = [
+        ("🎯 Motivation 动机", "motivation", [
+            ("现实痛点", "real_world_pain"),
+            ("现有方法不足", "existing_limitations"),
+            ("本文切入角度", "this_paper_angle"),
+            ("为什么重要", "why_it_matters"),
+        ]),
+        ("❓ 问题定义", "problem", [
+            ("任务类型", "task_type"),
+            ("形式化定义", "formal_definition"),
+            ("输入", "input"),
+            ("输出", "output"),
+            ("关键约束", "key_constraints"),
+        ]),
+        ("🛠 方法详解", "method", [
+            ("整体框架", "overview"),
+            ("关键模块", "key_modules"),
+            ("训练策略", "training_strategy"),
+            ("推理流程", "inference_pipeline"),
+            ("关键洞见", "key_insights"),
+        ]),
+        ("🧪 实验设置 & 主结果", "experiment", [
+            ("数据集", "datasets"),
+            ("评价指标", "metrics"),
+            ("基线", "baselines"),
+            ("主要发现", "main_results"),
+            ("胜负分析", "win_or_lose"),
+        ]),
+        ("🔍 消融实验", "ablation", [
+            ("消融逐项", "ablations"),
+            ("超参敏感性", "hyperparameter_analysis"),
+            ("Case Study", "case_study"),
+            ("鲁棒性", "robustness"),
+        ]),
+        ("⚖️ 与 SOTA 对比", "comparison", [
+            ("vs SOTA", "vs_sota"),
+            ("复杂度对比", "complexity_compare"),
+            ("工程友好度", "engineering_friendliness"),
+            ("工业落地价值", "industry_value"),
+        ]),
+        ("⚠️ 局限 & 未来方向", "limitation", [
+            ("局限", "limitations"),
+            ("未来方向", "future_directions"),
+            ("开放问题", "open_questions"),
+            ("阅读建议", "reading_advice"),
+        ]),
+    ]
+
+    tabs = st.tabs([title for title, _, _ in sections])
+    for tab, (_, key, fields) in zip(tabs, sections):
+        with tab:
+            data = deep.get(key)
+            if not data:
+                st.info("（无内容或未解读）")
+                continue
+            if data.get("_parse_failed"):
+                st.warning("LLM 输出解析失败，原始内容：")
+                st.code(data.get("_raw", ""), language="text")
+                continue
+            for label, fkey in fields:
+                v = data.get(fkey)
+                if v is None or v == "" or v == []:
+                    continue
+                if isinstance(v, list):
+                    st.markdown(f"**{label}**：")
+                    for item in v:
+                        if isinstance(item, dict):
+                            # 展示 dict（如 modules / ablations / vs_sota）
+                            cells = " | ".join(f"**{k}**: {item[k]}" for k in item if item[k])
+                            st.markdown(f"- {cells}")
+                        else:
+                            st.markdown(f"- {item}")
+                else:
+                    st.markdown(f"**{label}**：{v}")
+
+    # 关键图
+    meta = deep.get("_meta") or {}
+    imgs = meta.get("image_paths") or []
+    if imgs:
+        st.markdown("---")
+        st.markdown("**📎 PDF 中提取的关键图（按大小排序）**")
+        cols = st.columns(min(len(imgs), 4))
+        for col, img in zip(cols, imgs[:4]):
+            try:
+                col.image(img, use_container_width=True)
+            except Exception:
+                pass
 
 # ---------- 顶部 ----------
 col1, col2 = st.columns([6, 1])
@@ -169,6 +262,50 @@ else:
                     st.markdown("**🏷 细分标签**：" + " ".join(f"`{t}`" for t in s["tags"]))
             else:
                 st.info("尚未生成 LLM 解读（可在配置中启用 LLM 后点击右上角刷新）")
+
+            # ===== 深度解读区 =====
+            st.markdown("---")
+            deep = p.get("deep_summary")
+            arxiv_id = p["arxiv_id"]
+
+            col_a, col_b, col_c = st.columns([1, 1, 4])
+            with col_a:
+                btn_label = "🔄 重新深度解读" if deep else "📖 生成深度解读"
+                if st.button(btn_label, key=f"deep_{arxiv_id}"):
+                    with st.spinner("正在下载 PDF + 调用 LLM 深度解读（约 1-2 分钟）..."):
+                        from deep_summarizer import deep_summarize
+                        try:
+                            new_deep = deep_summarize(p, cfg)
+                            store.update_deep_summary(arxiv_id, new_deep)
+                            st.success("深度解读完成")
+                            st.rerun()
+                        except Exception as ex:
+                            st.error(f"深度解读失败：{ex}")
+            with col_b:
+                if deep:
+                    if st.button("📥 生成并下载 PPT", key=f"ppt_{arxiv_id}"):
+                        with st.spinner("正在生成 PPT..."):
+                            from ppt_generator import generate_ppt
+                            try:
+                                fp = generate_ppt(p)
+                                st.session_state[f"ppt_path_{arxiv_id}"] = str(fp)
+                                st.success("PPT 已生成")
+                            except Exception as ex:
+                                st.error(f"PPT 生成失败：{ex}")
+                    ppt_path = st.session_state.get(f"ppt_path_{arxiv_id}")
+                    if ppt_path and Path(ppt_path).exists():
+                        with open(ppt_path, "rb") as f:
+                            st.download_button(
+                                "⬇️ 下载 .pptx",
+                                data=f.read(),
+                                file_name=Path(ppt_path).name,
+                                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                key=f"dl_{arxiv_id}",
+                            )
+
+            # 深度解读详情展示
+            if deep:
+                _render_deep_summary(deep)
 
             with st.popover("查看英文摘要"):
                 st.write(p.get("abstract", ""))

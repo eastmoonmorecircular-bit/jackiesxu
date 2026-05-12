@@ -7,3 +7,6 @@ APScheduler>=3.10.0
 PyYAML>=6.0
 python-dateutil>=2.8.2
 libsql-client>=0.3.1
+PyMuPDF>=1.24.0
+python-pptx>=0.6.23
+Pillow>=10.0.0
