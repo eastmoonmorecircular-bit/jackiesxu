@@ -1,109 +1,201 @@
 # ============== 推荐系统 arXiv Agent 配置 ==============
+# 重点关注：精排（Ranking / CTR / CVR）+ 混排（Re-Ranking / Multi-objective）
 
-# arXiv 抓取配置
+# ===================== arXiv 抓取配置 =====================
 arxiv:
-  # 主分类，cs.IR=信息检索（推荐主战场），cs.LG=机器学习，cs.AI=人工智能
+  # 主分类：信息检索 / 机器学习
   categories:
     - cs.IR
-  # 关键词过滤（在标题或摘要中命中任一即保留）
+    - cs.LG
+  # 关键词过滤（命中任一即保留），重点围绕精排/混排环节
   keywords:
-    - recommend
-    - recommender
+    # ---- 精排核心 ----
+    - CTR
+    - click-through rate
+    - CVR
+    - conversion rate
+    - ranking model
+    - learning to rank
+    - learning-to-rank
+    - LTR
+    - point-wise
+    - pair-wise
+    - listwise
+    - feature interaction
+    - DeepFM
+    - DCN
+    - DIN
+    - DIEN
+    - cross network
+    # ---- 混排核心 ----
+    - re-ranking
+    - reranking
+    - re-rank
+    - rerank
+    - list-wise reranking
+    - context-aware ranking
+    - mixed ranking
+    - multi-objective ranking
+    - multi-task ranking
+    - MMoE
+    - PLE
+    - ESMM
+    - cross-domain ranking
+    # ---- 通用兜底（覆盖范围内的精排/混排相关） ----
+    - recommender system
     - recommendation
-    - collaborative filtering
+    - personalization
+  # 每次最多抓取条数（每周一次，可以多抓些）
+  max_results: 200
+  # 抓取近 N 天的论文（每周触发，所以 7 天）
+  days_back: 7
+
+# ===================== 方向分类规则 =====================
+# 精排/混排细分排在最前面（优先匹配）
+directions:
+  # =========== 精排相关 ===========
+  精排-CTR预估:
     - CTR
     - click-through
-    - ranking
-    - retrieval
-    - sequential recommend
-    - session-based
-  # 每日最多抓取条数
-  max_results: 80
-  # 只抓取最近 N 天的论文
-  days_back: 2
+    - DeepFM
+    - DCN
+    - xDeepFM
+    - AutoInt
+    - DIN
+    - DIEN
+    - feature interaction
+    - cross network
+  精排-CVR/多任务:
+    - CVR
+    - conversion rate
+    - ESMM
+    - ESM2
+    - MMoE
+    - PLE
+    - multi-task
+    - multitask
+    - shared bottom
+  精排-LTR排序:
+    - learning to rank
+    - learning-to-rank
+    - LTR
+    - pairwise
+    - listwise
+    - pointwise
+    - LambdaRank
+    - LambdaMART
+  精排-用户兴趣建模:
+    - user interest
+    - sequential interest
+    - long-term interest
+    - short-term interest
+    - SIM
+    - ETA
+    - long sequence
+    - lifelong sequence
+    - user behavior
 
-# 方向分类规则（关键词命中即归类，可命中多个；都不命中则归 "其他"）
-directions:
+  # =========== 混排相关 ===========
+  混排-Reranking:
+    - reranking
+    - re-ranking
+    - re-rank
+    - PRM
+    - DLCM
+    - SetRank
+    - context-aware ranking
+    - listwise rerank
+    - generative rerank
+  混排-多目标融合:
+    - multi-objective
+    - pareto
+    - hybrid ranking
+    - mixed ranking
+    - blending
+    - whole-page
+    - whole page
+  混排-多样性/新颖性:
+    - diversity
+    - diversification
+    - MMR
+    - DPP
+    - novelty
+    - serendipity
+  混排-广告/自然结果混排:
+    - ad allocation
+    - ad mixing
+    - organic
+    - sponsored
+
+  # =========== 其他相关方向（保留以兜底） ===========
   LLM4Rec:
     - LLM
     - large language model
     - GPT
-    - language model
-    - prompt
+    - language model agent
+    - prompt-based recommend
   序列推荐:
-    - sequential
+    - sequential recommend
     - session-based
     - SASRec
+    - BERT4Rec
     - next-item
-    - session
-  CTR预估:
-    - CTR
-    - click-through
-    - click through
-    - DeepFM
-    - feature interaction
-  召回检索:
-    - retrieval
-    - two-tower
-    - dual encoder
-    - ANN
-    - approximate nearest
-    - dense retrieval
   图推荐:
     - graph neural
     - GNN
+    - LightGCN
     - graph convolution
-    - heterogeneous graph
-  多模态推荐:
-    - multimodal
-    - multi-modal
-    - vision-language
-    - cross-modal
-  冷启动:
-    - cold-start
-    - cold start
-    - few-shot
-  跨域推荐:
-    - cross-domain
-    - transfer
-  强化学习推荐:
-    - reinforcement learning
-    - bandit
-    - RLHF
   公平去偏:
     - fairness
     - debias
-    - bias
+    - bias correction
     - causal
     - counterfactual
   对比学习:
-    - contrastive
+    - contrastive learning
     - self-supervised
     - SSL
   生成式推荐:
     - generative
-    - diffusion
-    - VAE
+    - diffusion-based recommend
+    - VAE recommend
 
-# LLM 解读配置（默认 智谱 GLM-4-Flash，完全免费）
+# ===================== LLM 解读配置 =====================
 llm:
-  provider: zhipu             # 可选: zhipu / deepseek / openai / custom
+  provider: zhipu
   api_key: ""                 # 留空，从环境变量 LLM_API_KEY 或 Streamlit Secrets 读取
   base_url: https://open.bigmodel.cn/api/paas/v4
-  model: glm-4-flash          # 免费模型；想效果更好可换 glm-4-plus（付费）
+  model: glm-4-flash          # 免费模型；可换 glm-4-plus（付费）
   temperature: 0.3
-  max_tokens: 1200
-  # 是否启用 LLM 解读（关闭时仅做规则分类，省钱用）
+  max_tokens: 1500
   enabled: true
-  # 单次运行最多解读几篇（控制费用 / 速率）
-  max_summarize_per_run: 30
+  # 单次运行最多浅解读几篇
+  max_summarize_per_run: 100
+  # ========== 深度解读自动开关 ==========
+  # 默认对每篇论文都生成深度解读 + PPT
+  auto_deep_summarize: true
+  # 单次运行最多深度解读几篇（每篇约 2 分钟，控制总耗时）
+  max_deep_summarize_per_run: 30
+  # 深度解读后是否自动生成 PPT
+  auto_generate_ppt: true
+  # 只对哪些方向自动深度解读（None 表示全部；这里聚焦精排/混排）
+  deep_summarize_directions:
+    - 精排-CTR预估
+    - 精排-CVR/多任务
+    - 精排-LTR排序
+    - 精排-用户兴趣建模
+    - 混排-Reranking
+    - 混排-多目标融合
+    - 混排-多样性/新颖性
+    - 混排-广告/自然结果混排
 
-# 调度配置
+# ===================== 调度配置 =====================
 scheduler:
-  # 每天几点抓取（24 小时制）
+  # 每周触发频率：周几（0=周一 ... 6=周日）
+  day_of_week: 0          # 周一
   hour: 9
   minute: 0
 
-# 存储
+# ===================== 存储 =====================
 storage:
   db_path: data/papers.db
