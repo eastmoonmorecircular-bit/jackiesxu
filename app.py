@@ -79,6 +79,12 @@ kw = st.sidebar.text_input("🔎 关键词搜索（标题/摘要）", "")
 priority = st.sidebar.selectbox("⭐ 阅读优先级", options=["全部", "高", "中", "低"], index=0)
 priority_arg = None if priority == "全部" else priority
 
+# 系统状态
+st.sidebar.divider()
+backend_label = "☁️ Turso 云端" if store.is_remote else "💾 本地 SQLite"
+st.sidebar.caption(f"**存储后端**：{backend_label}")
+st.sidebar.caption(f"**总入库量**：{len(store.list_papers())} 篇")
+
 # ---------- 取数 ----------
 papers = store.list_papers(
     date_from=date_from,
