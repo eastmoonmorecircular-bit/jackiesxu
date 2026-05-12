@@ -1,0 +1,13 @@
+services:
+  recsys-agent:
+    build: .
+    container_name: recsys-arxiv-agent
+    ports:
+      - "8501:8501"
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data            # 数据库持久化
+      - ./config.yaml:/app/config.yaml:ro
+    restart: unless-stopped

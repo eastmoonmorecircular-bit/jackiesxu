@@ -1,0 +1,109 @@
+# ============== 推荐系统 arXiv Agent 配置 ==============
+
+# arXiv 抓取配置
+arxiv:
+  # 主分类，cs.IR=信息检索（推荐主战场），cs.LG=机器学习，cs.AI=人工智能
+  categories:
+    - cs.IR
+  # 关键词过滤（在标题或摘要中命中任一即保留）
+  keywords:
+    - recommend
+    - recommender
+    - recommendation
+    - collaborative filtering
+    - CTR
+    - click-through
+    - ranking
+    - retrieval
+    - sequential recommend
+    - session-based
+  # 每日最多抓取条数
+  max_results: 80
+  # 只抓取最近 N 天的论文
+  days_back: 2
+
+# 方向分类规则（关键词命中即归类，可命中多个；都不命中则归 "其他"）
+directions:
+  LLM4Rec:
+    - LLM
+    - large language model
+    - GPT
+    - language model
+    - prompt
+  序列推荐:
+    - sequential
+    - session-based
+    - SASRec
+    - next-item
+    - session
+  CTR预估:
+    - CTR
+    - click-through
+    - click through
+    - DeepFM
+    - feature interaction
+  召回检索:
+    - retrieval
+    - two-tower
+    - dual encoder
+    - ANN
+    - approximate nearest
+    - dense retrieval
+  图推荐:
+    - graph neural
+    - GNN
+    - graph convolution
+    - heterogeneous graph
+  多模态推荐:
+    - multimodal
+    - multi-modal
+    - vision-language
+    - cross-modal
+  冷启动:
+    - cold-start
+    - cold start
+    - few-shot
+  跨域推荐:
+    - cross-domain
+    - transfer
+  强化学习推荐:
+    - reinforcement learning
+    - bandit
+    - RLHF
+  公平去偏:
+    - fairness
+    - debias
+    - bias
+    - causal
+    - counterfactual
+  对比学习:
+    - contrastive
+    - self-supervised
+    - SSL
+  生成式推荐:
+    - generative
+    - diffusion
+    - VAE
+
+# LLM 解读配置（默认 智谱 GLM-4-Flash，完全免费）
+llm:
+  provider: zhipu             # 可选: zhipu / deepseek / openai / custom
+  api_key: ""                 # 留空，从环境变量 LLM_API_KEY 或 Streamlit Secrets 读取
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  model: glm-4-flash          # 免费模型；想效果更好可换 glm-4-plus（付费）
+  temperature: 0.3
+  max_tokens: 1200
+  # 是否启用 LLM 解读（关闭时仅做规则分类，省钱用）
+  enabled: true
+  # 单次运行最多解读几篇（控制费用 / 速率）
+  max_summarize_per_run: 30
+
+# 调度配置
+scheduler:
+  # 每天几点抓取（24 小时制）
+  hour: 9
+  minute: 0
+
+# 存储
+storage:
+  db_path: data/papers.db
